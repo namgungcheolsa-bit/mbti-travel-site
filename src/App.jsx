@@ -3,7 +3,6 @@ import { questions } from './questions';
 import { results } from './results';
 
 function App() {
-  // gameState: 'START' (랜딩), 'QUIZ' (테스트), 'RESULT' (결과)
   const [gameState, setGameState] = useState('START');
   const [currentStep, setCurrentStep] = useState(0); 
   const [scores, setScores] = useState({
@@ -14,20 +13,27 @@ function App() {
     helper: 0,
     genius: 0
   }); 
+  // 사용자가 각 단계에서 어떤 성향(value)을 선택했는지 순서대로 기록하는 배열 (이전 단계로 갈 때 점수를 깎기 위함)
+  const [history, setHistory] = useState([]);
   const [finalType, setFinalType] = useState("leader");
 
-  // 테스트 시작 핸들러
   const startTest = () => {
     setGameState('QUIZ');
     setCurrentStep(0);
     setScores({ leader: 0, risk: 0, mover: 0, striker: 0, helper: 0, genius: 0 });
+    setHistory([]);
   };
 
-  // 답변 클릭 핸들러
+  // 답변 클릭 시 (다음 단계로)
   const handleAnswerClick = (value) => {
+    // 1. 점수 더하기
     const nextScores = { ...scores, [value]: scores[value] + 1 };
     setScores(nextScores);
+    
+    // 2. 내가 선택한 역사적 인물 성향 키값을 히스토리에 기록
+    setHistory([...history, value]);
 
+    // 3. 다음 질문으로 이동 혹은 결과 도출
     if (currentStep + 1 < questions.length) {
       setCurrentStep(currentStep + 1);
     } else {
@@ -35,7 +41,26 @@ function App() {
     }
   };
 
-  // 결과 계산 알고리즘
+  // ⬅️ 이전 단계로 가기 버튼 클릭 시
+  const handlePrevClick = () => {
+    if (currentStep === 0) return; // 첫 번째 질문이면 작동 안 함
+
+    // 1. 가장 최근에 선택했던 성향 키값(value)을 히스토리 배열에서 꺼내옴
+    const lastSelectedValue = history[history.length - 1];
+    
+    // 2. 히스토리 배열에서 마지막 항목 제거
+    setHistory(history.slice(0, -1));
+
+    // 3. 방금 누적했던 점수를 다시 1점 차감 (안전하게 0 이하로 내려가지 않도록 처리)
+    setScores({
+      ...scores,
+      [lastSelectedValue]: Math.max(0, scores[lastSelectedValue] - 1)
+    });
+
+    // 4. 이전 단계로 인덱스 감소
+    setCurrentStep(currentStep - 1);
+  };
+
   const calculateResult = (finalScores) => {
     let maxScore = -1;
     let winnerType = "leader";
@@ -51,7 +76,6 @@ function App() {
     setGameState('RESULT');
   };
 
-  // 다시 하기 핸들러
   const resetTest = () => {
     setGameState('START');
   };
@@ -77,7 +101,6 @@ function App() {
               위기의 순간 당신의 선택을 통해, 당신 안에 숨겨진 영웅적 면모와 최적의 음성 로컬 여행지를 매칭해 드립니다.
             </p>
 
-            {/* 디자인 포인트: 전장 그래픽적 요소를 대신할 아이콘 영역 */}
             <div className="w-24 h-24 rounded-full bg-slate-700/50 border border-slate-600 flex items-center justify-center mb-8 shadow-inner text-3xl animate-pulse">
               🎖️
             </div>
@@ -100,9 +123,20 @@ function App() {
           <div>
             {/* 상단 프로그레스 헤더 */}
             <div className="flex justify-between items-center mb-4 text-xs font-bold text-amber-400">
-              <span>감우재 작전 구역 진입률</span>
+              <div className="flex items-center gap-2">
+                {/* 첫 번째 질문이 아닐 때만 이전 버튼이 은은하게 등장 */}
+                {currentStep > 0 && (
+                  <button 
+                    onClick={handlePrevClick}
+                    className="bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-amber-400 px-2.5 py-1 rounded-md text-[11px] font-medium transition duration-150 active:scale-95 border border-slate-600"
+                  >
+                    ⬅️ 이전 작전
+                  </button>
+                )}
+              </div>
               <span>{currentStep + 1} / {questions.length}</span>
             </div>
+            
             <div className="w-full bg-slate-700 h-2 rounded-full mb-6 overflow-hidden">
               <div 
                 className="bg-amber-500 h-2 rounded-full transition-all duration-300"
